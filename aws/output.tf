@@ -7,9 +7,9 @@ output "rancher_node_ip" {
 }
 
 output "workload_node_ip_prod" {
-  value = aws_spot_instance_request.k8s_cluster_prod.public_ip
+  value = aws_spot_instance_request.k8s_cluster_prod[0].public_ip
 }
 
 output "workload_node_ip_dev" {
-  value = aws_spot_instance_request.k8s_cluster_dev.public_ip
+  value = aws_spot_instance_request.k8s_cluster_hml[0].public_ip
 }

@@ -8,6 +8,14 @@ variable "aws_access_key" {
   description = "AWS access key used to create infrastructure"
 }
 
+variable "instance_count_prod" {
+  default = "1"
+}
+
+variable "instance_count_hml" {
+  default = "1"
+}
+
 # Required
 variable "aws_secret_key" {
   type        = string
@@ -18,6 +26,12 @@ variable "aws_secret_key" {
 variable "mainter" {
   type        = string
   description = "User mainter"
+}
+
+# Required
+variable "company" {
+  type        = string
+  description = "Company Name, ATTENTION, ONLY lowercase"
 }
 
 variable "aws_region" {
@@ -85,4 +99,44 @@ variable "rancher_server_admin_password" {
 # Local variables used to reduce repetition
 locals {
   node_username = "ubuntu"
+}
+
+
+
+#=======================================================
+variable "vpcCIDRblockProd" {
+    default = "10.0.0.0/16"
+}
+variable "vpcCIDRblockHml" {
+    default = "10.1.0.0/16"
+}
+variable "instanceTenancy" {
+    default = "default"
+}
+variable "dnsSupport" {
+    default = true
+}
+variable "dnsHostNames" {
+    default = true
+}
+#==========================================
+variable "publicsCIDRblockprodA" {
+    default = "10.0.10.0/24"
+}
+variable "privateCIDRblockprodB" {
+    default = "10.0.20.0/24"
+}
+#==========================================
+variable "publicsCIDRblockdevC" {
+    default = "10.1.10.0/24"
+}
+variable "privateCIDRblockprodD" {
+    default = "10.1.20.0/24"
+}
+#==========================================
+variable "mapPublicIP" {
+    default = true
+}
+variable "mapPrivateIP" {
+    default = false
 }

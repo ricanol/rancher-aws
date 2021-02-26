@@ -1,7 +1,14 @@
 #!/bin/bash -x
 
+echo 'Waiting for cloud-init to complete...'
+cloud-init status --wait > /dev/null
+echo 'Completed cloud-init!'
+
 export DEBIAN_FRONTEND=noninteractive
 curl -sL https://releases.rancher.com/install-docker/${docker_version}.sh | sh
 sudo usermod -aG docker ${username}
+
+sudo mkdir /tmp/app/
+sudo chmod -R 777 /tmp/
 
 ${register_command} --etcd --controlplane --worker

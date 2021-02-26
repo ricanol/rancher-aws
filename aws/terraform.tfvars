@@ -2,28 +2,37 @@
 # ==========================================================
 
 # AWS Access Key
-# aws_access_key = ""
+ aws_access_key = ""
 
 # AWS Secret Key
-# aws_secret_key = ""
+ aws_secret_key = ""
 
 # Password used to log in to the `admin` account on the new Rancher server
-# rancher_server_admin_password = "admin"
+ rancher_server_admin_password = "admin"
 
 # EC2 instance size of all created instances: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html
-# instance_type = "t3.medium"
+ instance_type = "t3.medium"
 
 # Spot instance size of all created instances: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html
-# spot_type = "t3.medium"
+ spot_type = "m5.2xlarge"
 
 # Spot instance price: https://aws.amazon.com/ec2/spot/pricing/
-# value_spot = "0.029"
+ value_spot = "0.17"
+
+# how many clusters in production?
+ instance_count_prod = "1"
+
+# how many clusters in homolog?
+ instance_count_hml = "1"
 
 # Define user mainter
-# mainter = "Ricardo"
+ mainter = "ricardo"
 
+# Define company name ONLY lowercase
+ company = "wilka"
+ 
 # Set the domain, otherwise the default will be xip.io
-# domain = ""
+ domain = "wilka.com.br"
 
 # Optional variables, uncomment to customize the creation of the environment 
 # ----------------------------------------------------------

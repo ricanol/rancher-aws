@@ -86,3 +86,15 @@ See `rancher-common` module variable `rancher_version` for more details.
 Admin password to use for Rancher server bootstrap
 
 See `rancher-common` module variable `admin_password` for more details.
+
+
+
+
+# enable features default1:
+
+- graylog
+- traefig
+- istio (Kiali, Jaeger)
+- monitoring clustes prod and dev and istio
+
+- LB para clusters prod e dev com certificado gerando log em um s3

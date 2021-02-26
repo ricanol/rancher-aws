@@ -22,9 +22,10 @@ resource "aws_key_pair" "generate_key_pair" {
   public_key      = tls_private_key.global_key.public_key_openssh
 }
 
-# Security group to allow all traffic
+# Security group to allow all traffic VPC prod
 resource "aws_security_group" "rancher_sg_allowall" {
-  name        = "rancher-server-allowall-sg"
+  name        = "rancher-server-prod-public-sg"
+  vpc_id      = aws_vpc.vpc_prod.id
   description = "Rancher Server - allow all traffic"
 
   ingress {
@@ -42,7 +43,7 @@ resource "aws_security_group" "rancher_sg_allowall" {
   }
 
   tags = {
-    Creator = "rancher-server"
+    Name = "rancher-server-prod-public-sg"
   }
 }
 
@@ -50,9 +51,10 @@ resource "aws_security_group" "rancher_sg_allowall" {
 resource "aws_instance" "rancher_server" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
+  subnet_id     = aws_subnet.Public_subnet_prod_A.id
 
   key_name        = aws_key_pair.generate_key_pair.key_name
-  security_groups = [aws_security_group.rancher_sg_allowall.name]
+  security_groups = [aws_security_group.rancher_sg_allowall.id]
 
   user_data = templatefile(
     join("/", [path.module, "../cloud-common/files/userdata_rancher_server.template"]),
@@ -108,6 +110,7 @@ resource "aws_instance" "rancher_server" {
     Name    = "rancher-server"
     Creator = "rancher-${var.mainter}"
   }
+  depends_on = [aws_subnet.Public_subnet_prod_A]
 }
 
 data "aws_route53_zone" "selected" {
@@ -126,6 +129,7 @@ resource "aws_route53_record" "dns_rancher_server" {
   depends_on = [aws_instance.rancher_server]
 }
 
+
 # Rancher resources
 module "rancher_common" {
   source = "../rancher-common"
@@ -133,9 +137,6 @@ module "rancher_common" {
   node_public_ip         = aws_instance.rancher_server.public_ip
   node_internal_ip       = aws_instance.rancher_server.private_ip
 
-  #node_public_ip_dev     = aws_instance.rancher_server.public_ip
-  #node_internal_ip_dev   = aws_instance.rancher_server.private_ip
-  
   node_username          = local.node_username
   ssh_private_key_pem    = tls_private_key.global_key.private_key_pem
   rke_kubernetes_version = var.rke_kubernetes_version
@@ -148,20 +149,23 @@ module "rancher_common" {
   admin_password = var.rancher_server_admin_password
 
   workload_kubernetes_version = var.workload_kubernetes_version
-  workload_cluster_name            = "cluster-k8s-natura-prod"
-  workload_cluster_name_dev        = "cluster-k8s-natura-dev"
+  workload_cluster_name            = "k8s-${var.company}-prod"
+  workload_cluster_name_dev        = "k8s-${var.company}-dev"
   
 }
 
 # AWS EC2 instance for creating a single node workload cluster PROD
 resource "aws_spot_instance_request" "k8s_cluster_prod" {
+  count         = var.instance_count_prod
+  subnet_id     = aws_subnet.Private_subnet_prod_B.id
+
   ami           = data.aws_ami.ubuntu.id
   wait_for_fulfillment = true
   spot_price    = var.value_spot
   instance_type = var.spot_type
 
   key_name        = aws_key_pair.generate_key_pair.key_name
-  security_groups = [aws_security_group.rancher_sg_allowall.name]
+  security_groups = [aws_security_group.rancher_sg_allowall.id]
 
   user_data = templatefile(
     join("/", [path.module, "files/userdata_node.template"]),
@@ -176,49 +180,37 @@ resource "aws_spot_instance_request" "k8s_cluster_prod" {
     volume_size = 80
   }
 
-  provisioner "remote-exec" {
-    inline = [
-      "echo 'Waiting for cloud-init to complete...'",
-      "cloud-init status --wait > /dev/null",
-      "echo 'Completed cloud-init!'",
-      "sudo mkdir /tmp/app/",
-      "sudo chmod -R 777 /tmp/"
-    ]
-
-    connection {
-      type        = "ssh"
-      host        = aws_spot_instance_request.k8s_cluster_prod.public_ip
-      user        = local.node_username
-      private_key = tls_private_key.global_key.private_key_pem
-    }
-  }
-
   tags = {
-    Name    = "k8s_cluster_prod"
+    Name    = "k8s_cluster_prod_${count.index + 1}"
     Creator = "rancher-server"
   }
+  depends_on = [aws_subnet.Private_subnet_prod_B]
 }
 
-
-## Create wild-card to cluster prod
-resource "aws_route53_record" "dns_wild_card_prod" {
+## Create DNS internal to cluster k8s prod
+resource "aws_route53_record" "dns_k8s_prod" {
   zone_id = data.aws_route53_zone.selected.zone_id
-  name = join(".", ["*", "prod" , "rancher", var.domain])
-  type = "CNAME"
+  name = join(".", ["*","prod","rancher", var.domain])
+  type = "A"
   ttl = "300"
-  records = [aws_spot_instance_request.k8s_cluster_prod.public_ip,
-            ]
+  records = [aws_spot_instance_request.k8s_cluster_prod[0].public_ip]
+
+  depends_on = [aws_spot_instance_request.k8s_cluster_prod]
 }
 
-# AWS EC2 instance for creating a single node workload cluster DEV
-resource "aws_spot_instance_request" "k8s_cluster_dev" {
+
+# AWS EC2 instance for creating a single node workload cluster HML
+resource "aws_spot_instance_request" "k8s_cluster_hml" {
+  count         = var.instance_count_hml
+  subnet_id     = aws_subnet.Private_subnet_hml_D.id
+
   ami           = data.aws_ami.ubuntu.id
   wait_for_fulfillment = true
   spot_price    = var.value_spot
   instance_type = var.spot_type
 
   key_name        = aws_key_pair.generate_key_pair.key_name
-  security_groups = [aws_security_group.rancher_sg_allowall.name]
+  security_groups = [aws_security_group.rancher_sg_allowall.id]
 
   user_data = templatefile(
     join("/", [path.module, "files/userdata_node.template"]),
@@ -233,39 +225,19 @@ resource "aws_spot_instance_request" "k8s_cluster_dev" {
     volume_size = 80
   }
 
-  provisioner "remote-exec" {
-    inline = [
-      "echo 'Waiting for cloud-init to complete...'",
-      "cloud-init status --wait > /dev/null",
-      "echo 'Completed cloud-init!'",
-      "sudo mkdir /tmp/app/",
-      "sudo chmod -R 777 /tmp/",
-    ]
-
-    connection {
-      type        = "ssh"
-      host        = aws_spot_instance_request.k8s_cluster_dev.public_ip
-      user        = local.node_username
-      private_key = tls_private_key.global_key.private_key_pem
-    }
-  }
-
   tags = {
-    Name    = "k8s_cluster_dev"
-    Creator = "rancher-server"
+    Name    = "k8s_cluster_hml_${var.company}"
   }
+  depends_on = [aws_subnet.Private_subnet_hml_D]
 }
 
-## Create wild-card to cluster dev
-resource "aws_route53_record" "dns_wild_card_dev" {
+## Create DNS internal to cluster k8s prod
+resource "aws_route53_record" "dns_k8s_hml" {
   zone_id = data.aws_route53_zone.selected.zone_id
-  name = join(".", ["*", "dev" , "rancher", var.domain])
-  type = "CNAME"
+  name = join(".", ["*","hml","rancher", var.domain])
+  type = "A"
   ttl = "300"
-  records = [aws_spot_instance_request.k8s_cluster_dev.public_ip,
-            ]
+  records = [aws_spot_instance_request.k8s_cluster_hml[0].public_ip]
 
-depends_on = [aws_spot_instance_request.k8s_cluster_dev,
-              var.domain
-              ]
+  depends_on = [aws_spot_instance_request.k8s_cluster_hml]
 }

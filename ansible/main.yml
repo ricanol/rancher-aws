@@ -1,0 +1,67 @@
+---
+#connect Rancher server to start commands kubectl
+- name: "connect Rancher server"
+  hosts: all
+  remote_user: "{{ user }}"
+  gather_facts: false
+  vars:
+    ansible_ssh_private_key_file: "../aws/id_rsa"
+  vars_files:
+    - tf_ansible_vars_file.yml
+
+  tasks:
+
+#===========================================================================
+  - name: Copy configs traefik
+    template:
+      src: k8s/dns/{{item}}.j2
+      dest: /tmp/{{item}}.yml
+    loop:
+      - traefik-ui-prod
+      - traefik-ui-dev
+
+  - name: "Create DNS to traefik in cluster prod"
+    command: "sudo kubectl apply -f /tmp/traefik-ui-prod.yml --kubeconfig=/root/.kube/k8s-prod"
+
+  - name: "Create DNS to traefik in cluster dev"
+    command: "sudo kubectl apply -f /tmp/traefik-ui-dev.yml --kubeconfig=/root/.kube/k8s-dev"
+
+#===========================================================================
+
+  - name: Copy configs graylog
+    template:
+      src: k8s/log/{{item}}.j2
+      dest: /tmp/{{item}}.yml
+    loop:
+      - graylog-prod
+      - graylog-dev
+
+  - name: "Create service graylog to cluster prod"
+    command: "sudo kubectl apply -f /tmp/graylog-prod.yml --kubeconfig=/root/.kube/k8s-prod"
+
+  - name: "Create service graylog to cluster dev"
+    command: "sudo kubectl apply -f /tmp/graylog-dev.yml --kubeconfig=/root/.kube/k8s-dev"
+
+    #falta mover o namespace gralog pro project Default
+
+  #===========================================================================
+
+  - name: Copy configs apply istio
+    template:
+      src: k8s/istio/{{item}}.j2
+      dest: /tmp/{{item}}.yml
+    loop:
+      - exemple-prod
+      - exemple-dev
+
+  - name: "Create namespace default anad enable istio prod"
+    command: "sudo kubectl label namespace default istio-injection=enabled --kubeconfig=/root/.kube/k8s-prod"
+
+  - name: "Create workload teste Istio to cluster prod"
+    command: "sudo kubectl apply -f /tmp/exemple-prod.yml --kubeconfig=/root/.kube/k8s-prod"
+
+  - name: "Create namespace default anad enable istio dev"
+    command: "sudo kubectl label namespace default istio-injection=enabled --kubeconfig=/root/.kube/k8s-dev"
+
+  - name: "Create workload teste Istio to cluster dev"
+    command: "sudo kubectl apply -f /tmp/exemple-dev.yml --kubeconfig=/root/.kube/k8s-dev"
